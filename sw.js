@@ -1,4 +1,4 @@
-const CACHE = 'chengmeng-v53';
+const CACHE = 'chengmeng-v56';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {

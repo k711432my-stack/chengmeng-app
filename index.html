@@ -5537,6 +5537,21 @@ function checkActivation(){
   }
 }
 
+
+// ── Browser reminder ──
+(function(){
+  if(localStorage.getItem('br_dismissed')) return;
+  const ua=navigator.userAgent||'';
+  const isInApp=/Line\/|FBAN|FBAV|Instagram|MicroMessenger|Twitter|Snapchat/.test(ua);
+  if(isInApp){
+    const el=document.getElementById('browser-reminder');
+    if(el){
+      el.style.display='block';
+      // Push content down
+      document.body.style.paddingTop='110px';
+    }
+  }
+})();
 // ══════════════════════════════════════
 // INIT
 // ══════════════════════════════════════
@@ -6110,9 +6125,14 @@ if('serviceWorker' in navigator){
       <div class="ob-slide" style="padding:28px 24px 20px;text-align:center;display:none">
         <div style="font-size:64px;margin-bottom:12px">👨‍👩‍👧</div>
         <div style="font-size:20px;font-weight:900;color:#2A8A6A;margin-bottom:14px">爸媽這樣配合</div>
-        <div style="background:#EDFAF5;border-radius:16px;padding:16px;text-align:left;margin-bottom:14px">
+        <div style="background:#FFF9E6;border:2px solid #FFD080;border-radius:16px;padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:13px;font-weight:900;color:#7A4A00;margin-bottom:6px">🔐 後台預設密碼</div>
+          <div style="font-size:32px;font-weight:900;color:#2A8A6A;letter-spacing:8px;margin-bottom:6px">1234</div>
+          <div style="font-size:11px;color:#9A6A00;font-weight:700">⚠️ 請進入後台後立即修改密碼！<br>後台 → ⚙️設定 → 修改密碼</div>
+        </div>
+        <div style="background:#EDFAF5;border-radius:16px;padding:14px;text-align:left;margin-bottom:14px">
           <div style="font-size:12px;color:#444;line-height:2">
-            🔐 點右上角 <b>鎖頭</b> → 輸入密碼進入後台<br>
+            🔐 點右上角 <b>🔐鎖頭</b> → 輸入密碼進入後台<br>
             ✅ 在後台 <b>確認孩子的打卡任務</b><br>
             ⭐ 隨時幫孩子 <b>加分或扣分</b><br>
             📰 觸發 <b>市場風險事件</b>，讓孩子學習應對<br>
@@ -6174,5 +6194,36 @@ if('serviceWorker' in navigator){
   </div>
 </div>
 
+
+<script>
+// Browser open reminder
+(function(){
+  const ua=navigator.userAgent||'';
+  const isInApp=/Line|FBAN|FBAV|Instagram|MicroMessenger/.test(ua);
+  if(isInApp){
+    const b=document.createElement('div');
+    b.id='browser-tip-main';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,#FF8C00,#FF6B00);color:#fff;padding:12px 16px;font-size:12px;font-weight:800;text-align:center;z-index:99999;line-height:1.7;box-shadow:0 2px 12px rgba(0,0,0,.3)';
+    const isLine=/Line/.test(ua);
+    b.innerHTML='📱 請點右上角 <b>'+(isLine?'「⋯」':'「⋮」')+'</b> → <b>「以預設瀏覽器開啟」</b><br><span style="font-size:10px;opacity:.9">否則部分功能可能無法使用</span> <button onclick="this.parentNode.remove();document.body.style.paddingTop='';" style="background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5);color:#fff;padding:4px 10px;border-radius:8px;margin-left:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:900">知道了</button>';
+    document.body.prepend(b);
+    document.body.style.paddingTop='72px';
+  }
+})();
+</script>
+
+
+<!-- 瀏覽器提醒 (LINE/FB in-app browser) -->
+<div id="browser-reminder" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(135deg,#FF8C00,#FF6B00);color:#fff;padding:12px 16px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.3)">
+  <div style="font-size:13px;font-weight:900;margin-bottom:4px">📱 請用預設瀏覽器開啟</div>
+  <div style="font-size:11px;opacity:.9;margin-bottom:8px;line-height:1.6">
+    點右上角 <b>「⋯」或「⋮」</b> → 選 <b>「用預設瀏覽器開啟」</b><br>
+    這樣功能才能完整顯示！
+  </div>
+  <button onclick="document.getElementById('browser-reminder').style.display='none';localStorage.setItem('br_dismissed','1')" 
+    style="background:rgba(255,255,255,.25);border:1.5px solid rgba(255,255,255,.5);color:#fff;padding:6px 18px;border-radius:20px;font-family:Nunito,sans-serif;font-size:12px;font-weight:800;cursor:pointer">
+    我知道了 ✓
+  </button>
+</div>
 </body>
 </html>
