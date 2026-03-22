@@ -2327,6 +2327,7 @@ function aQ(sign){
   k.free+=delta;k.total+=delta;
   k.history.unshift({icon:sign>0?'⭐':'💸',name:sign>0?`爸媽加分 +${v}`:`爸媽扣分 -${v}`,date:nowStr(),pts:delta,type:sign>0?'pos':'neg'});
   if(sign>0)checkMs(k,oldTotal);
+  earnLog.push({kidIdx:aki,amount:delta,type:sign>0?'task':'deduct',date:nowStr(),desc:sign>0?kids[aki].name+' 得分':kids[aki].name+' 扣分'});saveEarnLog();
   aLoad();saveK();if(ki===aki)updateUI();
   toast(sign>0?`🎉 幫 ${kids[aki].name} 加 ${v} 分！`:`✅ 已扣 ${kids[aki].name} ${v} 分`);
 }
@@ -3704,6 +3705,7 @@ function renderTodayEarnDetail(){
     task:{icon:'✅',label:'任務打卡',total:0},
     dream:{icon:'🎯',label:'夢想存錢筒',total:0},
     dividend:{icon:'💰',label:'投資配息',total:0},
+    deduct:{icon:'❌',label:'扣分記錄',total:0},
   };
   
   todayLogs.forEach(e=>{
@@ -3716,7 +3718,7 @@ function renderTodayEarnDetail(){
   const el=g('todayearn-body');
   if(!el)return;
   
-  if(total<=0){
+  if(total===0){
     el.innerHTML=`<div style="text-align:center;padding:24px;color:var(--mu)">
       <div style="font-size:40px;margin-bottom:10px">🌱</div>
       <div style="font-size:14px;font-weight:800">今天還沒有收益</div>
