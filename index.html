@@ -168,6 +168,12 @@ textarea:focus{border-color:var(--pk);}
 </style>
 </head>
 <body class="k0">
+<div id="cm-backup-bar" style="display:none;padding:5px 14px;font-size:11px;color:#2d6a4f;text-align:center;border-bottom:1px solid #b7ebc8;position:sticky;top:0;z-index:9999"><span id="cm-backup-time"></span></div>
+<div id="cm-data-notice" style="display:none;background:#fff8e1;padding:10px 14px;font-size:12px;color:#6d4c00;text-align:center;border-bottom:2px solid #ffb300;line-height:1.6;position:sticky;top:0;z-index:9999">
+  ⚠️ <b>重要：我們沒有您任何的資料。</b>謟欢備份至 Google Drive，更改裝置或清除瞭覽器將導致所有記錄永久消失。
+  <button onclick="localStorage.setItem('cm_notice_dismissed',Date.now());document.getElementById('cm-data-notice').style.display='none';gdriveAuth()" style="margin-left:8px;padding:4px 12px;border-radius:6px;background:#2d6a4f;color:#fff;border:none;font-size:11px;font-weight:700;cursor:pointer">立即設定備份</button>
+  <button onclick="localStorage.setItem('cm_notice_dismissed',Date.now());document.getElementById('cm-data-notice').style.display='none'" style="margin-left:4px;padding:4px 10px;border-radius:6px;background:transparent;color:#6d4c00;border:1px solid #ffb300;font-size:11px;cursor:pointer">我瞭解了</button>
+</div>
 <div class="cfw" id="cfw"></div>
 
 <!-- Disclaimer -->
@@ -1502,6 +1508,13 @@ function updateUI(){
   const ms=getMs(k.total),nx=getNx(k.total);
   set('h-sub',ms.t);
   set('h-tot',k.total);
+  updateBackupBar();
+  var _nd=document.getElementById('cm-data-notice');
+  if(_nd){
+    var _dis=localStorage.getItem('cm_notice_dismissed');
+    var _sok=_dis&&(Date.now()-parseInt(_dis))<7*24*60*60*1000;
+    _nd.style.display=(!gdriveToken&&!_sok)?'block':'none';
+  }
   set('b-free',k.free);set('b-bank',k.bank);set('b-bond',k.bond);set('b-stock',k.stock);
   set('inv-free',k.free);set('rd-free',k.free);
   set('t-bank',`年利 ${rates.bank}%`);
@@ -1659,7 +1672,7 @@ function confirmAlloc(){
   k.free-=v;k[at]+=v;
   k.history.unshift({icon:'💰',name:`存入${nm[at]}`,date:nowStr(),pts:-v,type:'neg'});
   sfxSave();
-  checkMs(k,old2);saveK();updateUI();hideM('alloc');toast(`✅ 成功存入 ${v} 分！`);
+  checkMs(k,old2);saveK();autoBackup();updateUI();hideM('alloc');toast(`✅ 成功存入 ${v} 分！`);
 }
 
 function openBondM(){
@@ -1698,7 +1711,7 @@ function confirmBond(){
   const desc=inv.map(({b,v})=>`${b.n} ${v}分`).join('・');
   k.free-=total;k.bond+=total;
   k.history.unshift({icon:'📄',name:`媽媽債券：${desc}`,date:nowStr(),pts:-total,type:'neg'});
-  saveK();updateUI();hideM('bond');toast(`✅ 成功投資債券 ${total} 分！`);burst();
+  saveK();autoBackup();updateUI();hideM('bond');toast(`✅ 成功投資債券 ${total} 分！`);burst();
   // Ask about dividend reminders
   setTimeout(()=>{
     const hasRemind=inv.some(({b})=>DIVIDEND_SCHEDULE[b.id]);
@@ -1741,7 +1754,7 @@ function confirmStock(){
   const k=kid();if(total>k.free){sfxError();toast('⚠️ 可用分數不足！');return;}
   k.free-=total;k.stock+=total;
   k.history.unshift({icon:'📈',name:`爸爸美股：${inv.join('・')}`,date:nowStr(),pts:-total,type:'neg'});
-  saveK();updateUI();hideM('stock');toast(`🚀 成功投資美股 ${total} 分！`);burst();
+  saveK();autoBackup();updateUI();hideM('stock');toast(`🚀 成功投資美股 ${total} 分！`);burst();
 }
 
 // ══════════════════════════════════════
@@ -1805,7 +1818,7 @@ function confirmRedeem(){
   if(cost>k.free){sfxError();toast('⚠️ 可用分數不足！');return;}
   k.free-=cost;k.total-=cost;
   k.history.unshift({icon:'🎁',name:desc,date:nowStr(),pts:-cost,type:'neg'});
-  saveK();updateUI();hideM('redeem');
+  saveK();autoBackup();updateUI();hideM('redeem');
   if(rt!=='game'&&rt!=='tablet') showRedeemUndo(cost,desc);
   sfxRedeem();
   burst();
@@ -2328,7 +2341,7 @@ function aQ(sign){
   k.history.unshift({icon:sign>0?'⭐':'💸',name:sign>0?`爸媽加分 +${v}`:`爸媽扣分 -${v}`,date:nowStr(),pts:delta,type:sign>0?'pos':'neg'});
   if(sign>0)checkMs(k,oldTotal);
   earnLog.push({kidIdx:aki,amount:delta,type:sign>0?'task':'deduct',date:nowStr(),desc:sign>0?kids[aki].name+' 得分':kids[aki].name+' 扣分'});saveEarnLog();
-  aLoad();saveK();if(ki===aki)updateUI();
+  aLoad();saveK();autoBackup();if(ki===aki)updateUI();
   toast(sign>0?`🎉 幫 ${kids[aki].name} 加 ${v} 分！`:`✅ 已扣 ${kids[aki].name} ${v} 分`);
 }
 function aReset(){
@@ -2711,7 +2724,32 @@ function gdriveAuth(){
   },600);
 }
 
-async function gdriveBackup(){
+async function autoBackup(){
+  if(!gdriveToken)return;
+  var data={version:'2.1.0',date:new Date().toISOString(),kids:kids,rates:rates,tasks:tasks,messages:messages,earnLog:earnLog,charData:charData,dreams:dreams};
+  fetch('https://www.googleapis.com/drive/v3/files?q=name%3D%27chengmeng_backup.json%27&spaces=drive',{headers:{Authorization:'Bearer '+gdriveToken}})
+    .then(function(r){return r.json();})
+    .then(function(s){
+      var eid=s.files&&s.files[0]&&s.files[0].id;
+      var url=eid?'https://www.googleapis.com/upload/drive/v3/files/'+eid+'?uploadType=media':'https://www.googleapis.com/upload/drive/v3/files?uploadType=media';
+      return fetch(url,{method:eid?'PATCH':'POST',headers:{Authorization:'Bearer '+gdriveToken,'Content-Type':'application/json'},body:JSON.stringify(data)});
+    })
+    .then(function(r){if(r.ok){localStorage.setItem('cm_last_backup',Date.now());updateBackupBar();}})
+    .catch(function(){});
+}
+function updateBackupBar(){
+  var bar=document.getElementById('cm-backup-bar');
+  if(!bar)return;
+  var last=parseInt(localStorage.getItem('cm_last_backup')||'0');
+  if(!last){bar.style.display='none';return;}
+  var diff=Math.floor((Date.now()-last)/60000);
+  var label=diff<1?'剛剛':diff<60?diff+'分鐘前':Math.floor(diff/60)+'小時前';
+  var el=bar.querySelector('#cm-backup-time');
+  if(el)el.textContent='☁️ 已自動備份：'+label;
+  bar.style.background='rgba(46,125,50,0.1)';
+  bar.style.display='block';
+}
+function gdriveBackup(){
   if(!gdriveToken){toast('請先連線 Google Drive');return;}
   const data={
     version:'2.1.0',date:new Date().toISOString(),
@@ -3025,7 +3063,7 @@ function confirmDreamDeposit(){
       const doneIcon=g('dreamdone-icon');if(doneIcon)doneIcon.textContent=d.icon;
       set('dreamdone-name',d.name);set('dreamdone-msg',msg);set('dreamdone-badge',badge);
       k.history.unshift({icon:'🏆',name:`🐻 夢想達成！「${d.name}」`,date:nowStr(),pts:0,type:'pos'});
-      saveK();showM('dreamdone');burst();floatCoins(6);
+      saveK();autoBackup();showM('dreamdone');burst();floatCoins(6);
     },500);
   } else {
     toast(`✨ 存入 ${v} 分！繼續加油！`);
@@ -4134,7 +4172,7 @@ function confirmTask(kidIdx,taskId,date){
   k.history.unshift({icon:p.taskIcon,name:`✅ ${p.taskName}（爸媽確認）`,date:nowStr(),pts:p.pts,type:'pos'});
   earnLog.push({kidIdx,amount:p.pts,type:'task',date:nowStr(),desc:p.taskName});
   checkStreak(k);checkMs(k,old);
-  saveK();saveEarnLog();
+  saveK();autoBackup();saveEarnLog();
   renderPendingTasks();
   if(ki===kidIdx)updateUI();
   sfxTaskConfirmed();
